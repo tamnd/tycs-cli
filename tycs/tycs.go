@@ -156,9 +156,5 @@ func (c *Client) pace() {
 }
 
 func backoff(attempt int) time.Duration {
-	d := time.Duration(attempt) * 500 * time.Millisecond
-	if d > 5*time.Second {
-		d = 5 * time.Second
-	}
-	return d
+	return min(time.Duration(attempt)*500*time.Millisecond, 5*time.Second)
 }

@@ -66,7 +66,7 @@ func (r *Renderer) Render(records any) error {
 	}
 	n := rv.Len()
 	items := make([]any, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		items[i] = rv.Index(i).Interface()
 	}
 
@@ -243,9 +243,7 @@ func toMap(v any) map[string]string {
 	if rv.Kind() != reflect.Struct {
 		return out
 	}
-	rt := rv.Type()
-	for i := 0; i < rt.NumField(); i++ {
-		f := rt.Field(i)
+	for _, f := range reflect.VisibleFields(rv.Type()) {
 		if f.PkgPath != "" {
 			continue
 		}
@@ -253,7 +251,7 @@ func toMap(v any) map[string]string {
 		if key == "-" {
 			continue
 		}
-		out[key] = formatValue(rv.Field(i))
+		out[key] = formatValue(rv.FieldByIndex(f.Index))
 	}
 	return out
 }
@@ -266,10 +264,8 @@ func structJSONKeys(v any) []string {
 	if rv.Kind() != reflect.Struct {
 		return nil
 	}
-	rt := rv.Type()
 	var keys []string
-	for i := 0; i < rt.NumField(); i++ {
-		f := rt.Field(i)
+	for _, f := range reflect.VisibleFields(rv.Type()) {
 		if f.PkgPath != "" {
 			continue
 		}
