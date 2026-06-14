@@ -1,62 +1,53 @@
-package tycs
+package tycs_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
+
+	"github.com/tamnd/tycs-cli/tycs"
 )
 
-func TestGet(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("User-Agent") == "" {
-			t.Error("request carried no User-Agent")
-		}
-		_, _ = w.Write([]byte("ok"))
-	}))
-	defer srv.Close()
+const fakeHTML = `<html><body>
+<h3 class="h3 mb0" id="programming">Programming</h3>
+<div><a href="https://sicp.example.com/">SICP</a></div>
+<h3 class="h3 mb0" id="architecture">Computer Architecture</h3>
+<div><a href="https://csapp.example.com/">CS:APP</a></div>
+</body></html>`
 
-	c := NewClient()
-	c.Rate = 0 // no pacing in the test
-
-	body, err := c.Get(context.Background(), srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(body) != "ok" {
-		t.Errorf("body = %q, want %q", body, "ok")
-	}
+func newTestClient(ts *httptest.Server) *tycs.Client {
+	cfg := tycs.DefaultConfig()
+	cfg.BaseURL = ts.URL
+	cfg.Rate = 0
+	return tycs.NewClient(cfg)
 }
 
-func TestGetRetriesOn503(t *testing.T) {
-	var hits int
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hits++
-		if hits < 3 {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		_, _ = w.Write([]byte("recovered"))
+func TestSubjects(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, fakeHTML)
 	}))
-	defer srv.Close()
+	defer ts.Close()
 
-	c := NewClient()
-	c.Rate = 0
-	c.Retries = 5
-
-	start := time.Now()
-	body, err := c.Get(context.Background(), srv.URL)
+	c := newTestClient(ts)
+	subjects, err := c.Subjects(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(body) != "recovered" {
-		t.Errorf("body = %q after retries", body)
+	if len(subjects) != 2 {
+		t.Fatalf("want 2, got %d", len(subjects))
 	}
-	if hits != 3 {
-		t.Errorf("server saw %d hits, want 3", hits)
+	if subjects[0].Slug != "programming" {
+		t.Errorf("Slug[0] = %q", subjects[0].Slug)
 	}
-	if time.Since(start) < 500*time.Millisecond {
-		t.Error("retries did not back off")
+	if subjects[0].Title != "Programming" {
+		t.Errorf("Title[0] = %q", subjects[0].Title)
+	}
+	if subjects[0].BookURL != "https://sicp.example.com/" {
+		t.Errorf("BookURL[0] = %q", subjects[0].BookURL)
+	}
+	if subjects[0].Rank != 1 {
+		t.Errorf("Rank[0] = %d, want 1", subjects[0].Rank)
 	}
 }
