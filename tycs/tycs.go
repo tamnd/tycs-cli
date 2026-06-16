@@ -96,6 +96,19 @@ func (c *Client) Subjects(ctx context.Context) ([]*Subject, error) {
 	return subjects, nil
 }
 
+// SiteInfo returns site-level stats.
+func (c *Client) SiteInfo(ctx context.Context) (*Info, error) {
+	subjects, err := c.Subjects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &Info{
+		Site:     Host,
+		Subjects: len(subjects),
+		Source:   c.cfg.BaseURL,
+	}, nil
+}
+
 func (c *Client) get(ctx context.Context, url string) ([]byte, error) {
 	var lastErr error
 	for attempt := 0; attempt <= c.cfg.Retries; attempt++ {

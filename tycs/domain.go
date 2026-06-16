@@ -39,17 +39,30 @@ tools. No API key, nothing to run alongside it.`,
 func (Domain) Register(app *kit.App) {
 	app.SetClient(newClient)
 
-	// Resolver op: look up a single subject by slug. Seeds the mint index so
-	// ant can address subject records as tycs://subject/<slug>.
+	// list: all subjects.
+	kit.Handle(app, kit.OpMeta{Name: "list", Group: "read", List: true,
+		Summary: "List all CS subject guides",
+		URIType: "subject"}, listSubjects)
+
+	// subjects: alias for list.
+	kit.Handle(app, kit.OpMeta{Name: "subjects", Group: "read", List: true,
+		Summary: "List all CS subject guides from Teach Yourself CS",
+		URIType: "subject"}, listSubjects)
+
+	// topic: fetch one subject by slug.
+	kit.Handle(app, kit.OpMeta{Name: "topic", Group: "read", Single: true,
+		Summary: "Fetch a CS subject guide by slug", URIType: "subject",
+		Args: []kit.Arg{{Name: "slug", Help: "subject slug (e.g. programming)"}}}, getSubject)
+
+	// subject: resolver op.
 	kit.Handle(app, kit.OpMeta{Name: "subject", Group: "read", Single: true,
 		Summary: "Fetch a CS subject guide by slug", URIType: "subject",
 		Resolver: true,
 		Args:     []kit.Arg{{Name: "slug", Help: "subject slug (e.g. programming)"}}}, getSubject)
 
-	// List op: all subjects.
-	kit.Handle(app, kit.OpMeta{Name: "subjects", Group: "read", List: true,
-		Summary: "List all CS subject guides from Teach Yourself CS",
-		URIType: "subject"}, listSubjects)
+	// info: site stats.
+	kit.Handle(app, kit.OpMeta{Name: "info", Group: "read", Single: true,
+		Summary: "Print site stats (subject count)"}, getSiteInfo)
 }
 
 func newClient(_ context.Context, cfg kit.Config) (any, error) {
@@ -78,6 +91,10 @@ type subjectsIn struct {
 	Client *Client `kit:"inject"`
 }
 
+type infoIn struct {
+	Client *Client `kit:"inject"`
+}
+
 func getSubject(ctx context.Context, in subjectRef, emit func(*Subject) error) error {
 	subjects, err := in.Client.Subjects(ctx)
 	if err != nil {
@@ -102,6 +119,14 @@ func listSubjects(ctx context.Context, in subjectsIn, emit func(*Subject) error)
 		}
 	}
 	return nil
+}
+
+func getSiteInfo(ctx context.Context, in infoIn, emit func(*Info) error) error {
+	info, err := in.Client.SiteInfo(ctx)
+	if err != nil {
+		return err
+	}
+	return emit(info)
 }
 
 func (Domain) Classify(input string) (uriType, id string, err error) {
