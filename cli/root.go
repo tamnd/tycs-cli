@@ -72,7 +72,10 @@ func Root() *cobra.Command {
 	pf.IntVar(&app.cfg.Retries, "retries", app.cfg.Retries, "retry attempts on 429/5xx")
 
 	root.AddCommand(
+		app.listCmd(),
 		app.subjectsCmd(),
+		app.topicCmd(),
+		app.infoCmd(),
 		newVersionCmd(),
 	)
 	return root
